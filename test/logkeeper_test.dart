@@ -160,5 +160,43 @@ void main() {
       final files = oldDir.listSync().whereType<File>().toList();
       expect(files.any((f) => f.path.endsWith('old.log')), isFalse);
     });
+
+    test('flushLogs writes to disk without closing the sink', () async {
+      LogKeeper.configure(logDirectory: testDir, writeToFileInDevMode: true);
+
+      LogKeeper.info('First message');
+      await LogKeeper.flushLogs();
+
+      var files = Directory(testDir).listSync().whereType<File>().toList();
+      expect(files.isNotEmpty, isTrue);
+
+      var content = await files.first.readAsString();
+      expect(content.contains('First message'), isTrue);
+
+      LogKeeper.info('Second message');
+      await LogKeeper.flushLogs();
+
+      files = Directory(testDir).listSync().whereType<File>().toList();
+      content = await files.first.readAsString();
+
+      expect(content.contains('First message'), isTrue);
+      expect(content.contains('Second message'), isTrue);
+    });
+
+    test('flushLogs does not prevent a later saveLogs call', () async {
+      LogKeeper.configure(logDirectory: testDir, writeToFileInDevMode: true);
+
+      LogKeeper.info('Before flush');
+      await LogKeeper.flushLogs();
+
+      LogKeeper.info('Before save');
+      await LogKeeper.saveLogs();
+
+      final files = Directory(testDir).listSync().whereType<File>().toList();
+      final content = await files.first.readAsString();
+
+      expect(content.contains('Before flush'), isTrue);
+      expect(content.contains('Before save'), isTrue);
+    });
   });
 }

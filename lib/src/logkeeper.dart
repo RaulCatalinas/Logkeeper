@@ -186,6 +186,18 @@ class LogKeeper {
   /// Returns a [Future] that completes when the log file has been flushed and closed.
   static Future<void> saveLogs() async => await _instance._fileManager?.close();
 
+  /// Writes any buffered log entries to disk without closing the
+  /// underlying file sink.
+  ///
+  /// Unlike [saveLogs], which closes the sink after writing (and is meant
+  /// to be called once, right before the app truly exits), [flushLogs] can
+  /// be called safely as many times as needed throughout the app's
+  /// lifetime — for example, on each transition to the background, or
+  /// right after a [LogKeeper.critical] call, to reduce the risk of losing
+  /// buffered entries if the process is later killed without warning.
+  static Future<void> flushLogs() async =>
+      await _instance._fileManager?.flush();
+
   static Future<Directory> _getDefaultLogsDir() async {
     final dir = await getApplicationSupportDirectory();
 

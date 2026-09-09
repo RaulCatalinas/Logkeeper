@@ -70,3 +70,9 @@ Everything will work exactly the same as in previous versions — no configurati
 
 - **`LogKeeper.logDirectoryPath`**: read-only getter that returns the absolute directory where log files are written. It is `null` until a custom directory is set with `configure`, or until `ensureLogDirectoryPath` or the first log write initializes the default support-directory `logs` folder.
 - **`LogKeeper.ensureLogDirectoryPath()`**: returns a `Future<String>` with that same absolute path and guarantees initialization (including the internal file manager) without requiring a prior log call. Prefer this when you need a non-null path before any logging.
+
+## 1.4.0
+
+### Added
+
+- **`LogKeeper.flushLogs()`**: writes buffered log entries to disk without closing the underlying file sink, unlike `saveLogs()`. Safe to call as many times as needed throughout an app's lifetime — intended for apps that pass through background/foreground repeatedly during a single session (e.g. most mobile apps), where calling `saveLogs()` more than once would throw since the sink is already closed. Use `saveLogs()` only once, right before the app truly exits.

@@ -58,4 +58,8 @@ class FileManager {
     await _sink?.flush();
     await _sink?.close();
   }
+
+  Future<void> flush() async {
+    await _sink?.flush();
+  }
 }

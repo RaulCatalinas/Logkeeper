@@ -18,7 +18,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  logkeeper: ^1.3.0
+  logkeeper: ^1.4.0
 ```
 
 Then run:
@@ -69,7 +69,7 @@ void main() async {
 
   // Now log as usual
   LogKeeper.info('Application started with custom config');
-  
+
   await LogKeeper.saveLogs();
 }
 ```
@@ -116,11 +116,56 @@ Each log entry includes automatic timestamps:
 [14:30:47] ERROR: Connection failed
 ```
 
+## Saving vs. Flushing Logs
+
+`saveLogs()` writes buffered entries to disk **and closes** the underlying file sink — it's meant to be called once, right before your app exits for good. Calling it a second time will throw, since the sink is already closed.
+
+For apps that pass through background/foreground repeatedly during a single session (most mobile apps), use `flushLogs()` instead: it writes buffered entries to disk **without** closing the sink, so it's safe to call as many times as you need.
+
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:logkeeper/logkeeper.dart';
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onStateChange: (state) {
+        if (state == AppLifecycleState.paused ||
+            state == AppLifecycleState.inactive) {
+          LogKeeper.flushLogs();
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  // ...
+}
+```
+
+Call `saveLogs()` only if/when your app has a genuine final shutdown point.
+
 ## Best Practices
 
-### Always Save Logs
+### Always Save or Flush Logs
 
-Call `saveLogs()` before your application exits to ensure all logs are written to disk:
+Call `saveLogs()` before your application exits — or `flushLogs()` if it might save more than once during its lifetime (see [Saving vs. Flushing Logs](#saving-vs-flushing-logs)):
 
 ```dart
 void main() async {
@@ -165,6 +210,10 @@ LogKeeper.error('Failed to connect to database: connection timeout after 30s');
 
 ## FAQ
 
+### What's the difference between `saveLogs()` and `flushLogs()`?
+
+Both write buffered log entries to disk. `saveLogs()` additionally closes the underlying file sink afterward, so it should only be called once, right before your app exits. `flushLogs()` leaves the sink open, so it's safe to call repeatedly throughout your app's lifetime — for example, on every transition to the background in a mobile app.
+
 ### Do I need to configure LogKeeper?
 
 **No!** LogKeeper works perfectly without any configuration. The defaults are sensible and work for most applications. Only use `configure()` if you need custom behavior.
@@ -179,7 +228,7 @@ By default, log files are stored in a `logs/` directory relative to your applica
 
 ### What happens if I don't call `saveLogs()`?
 
-Some log entries may not be written to disk as they remain in the buffer. Always call `saveLogs()` before exiting.
+Some log entries may not be written to disk as they remain in the buffer. Always call `saveLogs()` or `flushLogs()` before exiting.
 
 ## Contributing
 
