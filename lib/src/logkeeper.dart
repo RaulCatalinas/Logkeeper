@@ -12,6 +12,7 @@ import 'log_level.dart' show LogLevel;
 
 class LogKeeper {
   static final LogKeeper _instance = LogKeeper._internal();
+
   DateFormat _timestampFormatter = DateFormat.Hms();
   DateFormat _filenameFormatter = DateFormat('yyyy-MM-dd_HH-mm-ss');
   Directory? _logDir;
@@ -24,6 +25,8 @@ class LogKeeper {
   factory LogKeeper() => _instance;
 
   LogKeeper._internal();
+
+  Future<void> _writeQueue = Future.value();
 
   /// Absolute filesystem path of the directory where log files are written.
   ///
@@ -92,7 +95,13 @@ class LogKeeper {
     );
   }
 
-  static Future<void> _writeLog(LogLevel level, String message) async {
+  static void _writeLog(LogLevel level, String message) {
+    _instance._writeQueue = _instance._writeQueue.then(
+      (_) => _performWrite(level, message),
+    );
+  }
+
+  static Future<void> _performWrite(LogLevel level, String message) async {
     await _ensureInitialized();
 
     final timestamp = _instance._timestampFormatter.format(DateTime.now());
@@ -110,9 +119,7 @@ class LogKeeper {
       );
     }
 
-    if (shouldWriteToFile) {
-      _instance._fileManager!.write(logEntry);
-    }
+    if (shouldWriteToFile) _instance._fileManager!.write(logEntry);
   }
 
   static String _colorize({required String message, required LogLevel level}) {
@@ -184,7 +191,10 @@ class LogKeeper {
   /// ```
   ///
   /// Returns a [Future] that completes when the log file has been flushed and closed.
-  static Future<void> saveLogs() async => await _instance._fileManager?.close();
+  static Future<void> saveLogs() async {
+    await _instance._writeQueue;
+    await _instance._fileManager?.close();
+  }
 
   /// Writes any buffered log entries to disk without closing the
   /// underlying file sink.
@@ -195,8 +205,10 @@ class LogKeeper {
   /// lifetime — for example, on each transition to the background, or
   /// right after a [LogKeeper.critical] call, to reduce the risk of losing
   /// buffered entries if the process is later killed without warning.
-  static Future<void> flushLogs() async =>
-      await _instance._fileManager?.flush();
+  static Future<void> flushLogs() async {
+    await _instance._writeQueue;
+    await _instance._fileManager?.flush();
+  }
 
   static Future<Directory> _getDefaultLogsDir() async {
     final dir = await getApplicationSupportDirectory();
