@@ -96,9 +96,12 @@ class LogKeeper {
   }
 
   static void _writeLog(LogLevel level, String message) {
-    _instance._writeQueue = _instance._writeQueue.then(
-      (_) => _performWrite(level, message),
-    );
+    _instance._writeQueue = _instance._writeQueue
+        .then((_) => _performWrite(level, message))
+        .catchError((Object error, StackTrace stackTrace) {
+      print('LogKeeper: failed to write log entry: $error');
+      print('StackTrace: $stackTrace');
+    });
   }
 
   static Future<void> _performWrite(LogLevel level, String message) async {
