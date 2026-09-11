@@ -45,21 +45,19 @@ class FileManager {
     if (!createNewFile) return;
 
     final filename = filenameFormatter.format(DateTime.now());
+
     _logFile = File(join(logDir.path, '$filename.log'));
     _logFile.createSync(recursive: true);
     _sink = _logFile.openWrite(mode: FileMode.append);
   }
 
-  void write(String message) {
-    _sink?.writeln(message);
-  }
+  void write(String message) => _sink?.writeln(message);
 
   Future<void> close() async {
     await _sink?.flush();
     await _sink?.close();
+    _sink = null;
   }
 
-  Future<void> flush() async {
-    await _sink?.flush();
-  }
+  Future<void> flush() async => await _sink?.flush();
 }
