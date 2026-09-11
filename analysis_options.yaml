@@ -8,3 +8,4 @@ linter:
     prefer_single_quotes: true
     file_names: true
     close_sinks: true
+    avoid_print: false
