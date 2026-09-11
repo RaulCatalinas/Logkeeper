@@ -11,12 +11,16 @@ import 'package:flutter_test/flutter_test.dart'
         test;
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:logkeeper/logkeeper.dart' show LogKeeper;
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart'
+    show PathProviderPlatform;
 
-import 'test_utils.dart' show clearDirectory;
+import 'test_utils.dart' show clearDirectory, FakePathProviderPlatform;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  const testDir = 'test_logs';
+  PathProviderPlatform.instance = FakePathProviderPlatform();
+
+  const String testDir = 'test_logs';
 
   group('LogKeeper', () {
     tearDown(() async {
