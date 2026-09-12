@@ -72,9 +72,15 @@ class LogKeeper {
     bool? writeToFileInDevMode,
     bool? colorizeConsoleOutput,
   }) {
-    if (logDirectory != null) {
-      _instance._logDir = Directory(logDirectory);
+    if (_instance._fileManager != null) {
+      warning(
+        'configure() was called after logging had already started — '
+        'ignored. Call configure() once, before any log call.',
+      );
+      return;
     }
+
+    if (logDirectory != null) _instance._logDir = Directory(logDirectory);
 
     _instance._minLevelForProduction = minLevelForProduction ?? LogLevel.info;
     _instance._maxLogAgeDays = maxLogAgeDays;
@@ -87,7 +93,7 @@ class LogKeeper {
 
   static Future<void> _ensureInitialized() async {
     _instance._logDir ??= await _getDefaultLogsDir();
-    _instance._fileManager ??= FileManager(
+    _instance._fileManager ??= await FileManager.create(
       logDir: _instance._logDir!,
       filenameFormatter: _instance._filenameFormatter,
       maxLogAgeDays: _instance._maxLogAgeDays,
@@ -218,4 +224,12 @@ class LogKeeper {
 
     return Directory(join(dir.path, 'logs'));
   }
+}
+
+Future<void> resetLogKeeperForTesting() async {
+  await LogKeeper._instance._writeQueue;
+  await LogKeeper._instance._fileManager?.close();
+  LogKeeper._instance._fileManager = null;
+  LogKeeper._instance._logDir = null;
+  LogKeeper._instance._writeQueue = Future.value();
 }

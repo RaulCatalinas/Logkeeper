@@ -1,1 +1,1 @@
-export 'src/logkeeper.dart';
+export 'src/logkeeper.dart' show LogKeeper;

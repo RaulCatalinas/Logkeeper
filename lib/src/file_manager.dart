@@ -12,14 +12,30 @@ class FileManager {
   late File _logFile;
   IOSink? _sink;
 
-  FileManager({
+  FileManager._({
     required this.logDir,
     required this.filenameFormatter,
     required this.createNewFile,
     this.maxLogAgeDays,
-  }) {
-    _initialize();
-    _cleanupOldLogs();
+  });
+
+  static Future<FileManager> create({
+    required Directory logDir,
+    required DateFormat filenameFormatter,
+    required bool createNewFile,
+    int? maxLogAgeDays,
+  }) async {
+    final manager = FileManager._(
+      logDir: logDir,
+      filenameFormatter: filenameFormatter,
+      createNewFile: createNewFile,
+      maxLogAgeDays: maxLogAgeDays,
+    );
+
+    manager._initialize();
+    await manager._cleanupOldLogs();
+
+    return manager;
   }
 
   Future<void> _cleanupOldLogs() async {

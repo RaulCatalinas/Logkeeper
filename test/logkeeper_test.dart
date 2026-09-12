@@ -3,14 +3,20 @@ import 'dart:io' show Directory, File;
 import 'package:flutter_test/flutter_test.dart'
     show
         TestWidgetsFlutterBinding,
+        contains,
+        equals,
         expect,
         group,
         isFalse,
+        isNot,
+        isNotEmpty,
+        isNull,
         isTrue,
         tearDown,
         test;
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:logkeeper/logkeeper.dart' show LogKeeper;
+import 'package:logkeeper/src/logkeeper.dart' show resetLogKeeperForTesting;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart'
     show PathProviderPlatform;
 
@@ -24,6 +30,7 @@ void main() {
 
   group('LogKeeper', () {
     tearDown(() async {
+      await resetLogKeeperForTesting();
       await clearDirectory('logs');
       await clearDirectory(testDir);
     });
@@ -106,6 +113,20 @@ void main() {
       });
     });
 
+    group('directory path', () {
+      test('logDirectoryPath is null before initialization', () {
+        expect(LogKeeper.logDirectoryPath, isNull);
+      });
+
+      test('ensureLogDirectoryPath initializes and returns a non-null path',
+          () async {
+        final path = await LogKeeper.ensureLogDirectoryPath();
+
+        expect(path, isNotEmpty);
+        expect(LogKeeper.logDirectoryPath, equals(path));
+      });
+    });
+
     group('custom formatting', () {
       test('applies custom file name format', () async {
         LogKeeper.configure(
@@ -165,6 +186,24 @@ void main() {
           content.contains(RegExp(r'\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]')),
           isTrue,
         );
+      });
+    });
+
+    group('configure lock', () {
+      test('configure() after the first write is ignored', () async {
+        LogKeeper.configure(
+          logDirectory: testDir,
+          writeToFileInDevMode: true,
+        );
+        LogKeeper.info('First');
+        await LogKeeper.saveLogs();
+
+        LogKeeper.configure(
+          logDirectory: 'other_dir',
+          writeToFileInDevMode: true,
+        );
+
+        expect(LogKeeper.logDirectoryPath, isNot(contains('other_dir')));
       });
     });
 
@@ -236,6 +275,33 @@ void main() {
 
         expect(content.contains('Before flush'), isTrue);
         expect(content.contains('Before save'), isTrue);
+      });
+    });
+
+    group('write failure resilience', () {
+      test('a failed write does not break subsequent writes', () async {
+        final blockingFile = File(testDir);
+        await blockingFile.writeAsString('not a directory');
+
+        LogKeeper.configure(
+          logDirectory: testDir,
+          writeToFileInDevMode: true,
+        );
+
+        LogKeeper.info('This write should fail');
+        await LogKeeper.flushLogs();
+
+        await blockingFile.delete();
+
+        LogKeeper.info('This write should succeed');
+        await LogKeeper.saveLogs();
+
+        final files = Directory(testDir).listSync().whereType<File>().toList();
+        expect(files.isNotEmpty, isTrue);
+
+        final content = await files.first.readAsString();
+        expect(content.contains('This write should succeed'), isTrue);
+        expect(content.contains('This write should fail'), isFalse);
       });
     });
   });
